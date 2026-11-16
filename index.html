@@ -1,0 +1,123 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Bir Alert: early warning for desert wells</title>
+<style>
+:root{--bg:#eef1ec;--cd:#fbfcfa;--tx:#12201f;--mu:#566663;--bd:#cdd6d0;--ac:#0f6b6b;--ok:#2e8f5e;--w1:#c99a00;--w2:#e0702a;--w3:#cf2f3a;--dry:#3b3b3b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0e1716;--cd:#16231f;--tx:#e8f0ec;--mu:#93a8a2;--bd:#2b3c37;--ac:#4cc3bb;--dry:#8a8a8a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0e1716;--cd:#16231f;--tx:#e8f0ec;--mu:#93a8a2;--bd:#2b3c37;--ac:#4cc3bb;--dry:#8a8a8a;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+.w{max-width:1100px;margin:0 auto;padding:18px 16px 40px}
+h1{font:700 30px/1.1 Georgia,"Times New Roman",serif;margin:0 0 4px;letter-spacing:-.5px}h2{font:600 16px Georgia,serif;margin:0 0 8px}
+.sub{color:var(--mu);margin:0 0 14px;max-width:70ch}
+.ctl{display:flex;flex-wrap:wrap;gap:14px 22px;background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:12px 14px;margin-bottom:14px;align-items:center}
+.ctl label{display:flex;flex-direction:column;font-size:13px;color:var(--mu);gap:2px;min-width:170px}.ctl b{color:var(--tx)}
+.ck{flex-direction:row!important;align-items:center;gap:6px!important;min-width:0!important}
+input[type=range]{width:100%;accent-color:var(--ac)}
+.g{display:grid;grid-template-columns:1.25fr 1fr;gap:14px}@media(max-width:820px){.g{grid-template-columns:1fr}}
+.c{background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:14px;min-width:0}
+svg{width:100%;height:auto;display:block}
+.pill{display:inline-block;padding:2px 10px;border-radius:99px;color:#fff;font-weight:600;font-size:13px}
+.big{font:700 24px Georgia,serif}.mu{color:var(--mu);font-size:13px}
+.bar{height:8px;background:var(--bd);border-radius:4px;overflow:hidden;margin:2px 0 8px}.bar i{display:block;height:100%}
+.ph{max-width:300px;margin:0 auto;border:2px solid var(--tx);border-radius:22px;padding:14px 12px;background:var(--bg)}
+.b{padding:8px 10px;border-radius:12px;margin:6px 0;font-size:13.5px;max-width:92%}.in{background:var(--cd);border:1px solid var(--bd)}.out{background:var(--ac);color:#fff;margin-left:auto}
+button{font:inherit;border:1px solid var(--bd);background:var(--cd);color:var(--tx);border-radius:8px;padding:6px 12px;cursor:pointer}button:hover,button:focus-visible{outline:2px solid var(--ac)}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.st{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}.st div{border:1px solid var(--bd);border-radius:8px;padding:8px 10px}
+.rt{font-size:13.5px;margin:3px 0}
+footer{margin-top:16px;font-size:12.5px;color:var(--mu)}
+</style></head><body><div class="w">
+<h1>Bir Alert</h1>
+<p class="sub">Early warning for desert wells. It predicts how many days a well has left, says how sure it is, texts the village in plain language, and sends each village to a <i>different</i> backup well so the warning does not cause a stampede.</p>
+<div class="ctl">
+<label>Date: <b id="dl"></b><input id="t" type="range" min="70" max="290" value="150"></label>
+<label>A missed failure costs <b id="rl"></b> × a false alarm<input id="r" type="range" min="1" max="20" value="10"></label>
+<label class="ck"><input id="dead" type="checkbox"> Kill sensor on selected well</label>
+<label class="ck"><input id="cl" type="checkbox"> Cloudy satellite pass</label>
+<label class="ck"><input id="sw" type="checkbox"> SMS in Swahili</label>
+</div>
+<div class="g">
+<div class="c"><h2>Wells and villages (click a well)</h2><svg id="map" viewBox="0 0 100 70"></svg>
+<div class="mu" id="leg"></div></div>
+<div class="c"><h2 id="wn"></h2><div id="det"></div><svg id="ch" viewBox="0 0 400 150"></svg><div class="mu">Line: water column (m). Shaded wedge: 80% forecast range. Red line: when it really ran dry.</div></div>
+</div>
+<div class="g" style="margin-top:14px">
+<div class="c"><h2>Does it work? Backtest on all 24 wells</h2><div class="st" id="bt"></div><div class="mu" id="btn"></div>
+<h2 style="margin-top:14px">Routing: no stampede</h2><div id="rt"></div></div>
+<div class="c"><h2>What the village receives</h2><div class="ph" id="ph"></div></div>
+</div>
+<footer><b>Data honesty:</b> this demo uses <b>simulated</b> wells: a water balance driven by a synthetic drought-year rainfall and heat series for a Marsabit-style region. Well names are only labels. The same pipeline takes CHIRPS rainfall, ERA5-Land evaporation and Sentinel-2 water and vegetation indices from Google Earth Engine. Sensor loss: falls back to the regional trend from neighbouring wells and widens the range. Cloud: widens it again and switches to Landsat or radar. Forecasts use a rolling trend fit with 80% ranges, and alert thresholds come from the cost slider.</footer></div>
+<script>
+const $=s=>document.querySelector(s),N=300,T0=70;let seed=11;
+const rnd=()=>{seed=seed*16807%2147483647;return(seed-1)/2147483646},gs=()=>Math.sqrt(-2*Math.log(rnd()||1e-9))*Math.cos(6.283*rnd());
+const names="Sabarei,Kalacha,Maikona,Korr,Loiyangalani,North Horr,Dukana,Hurri Hills,Logologo,Gas,Turbi,Bubisa,Illeret,Kargi,Merille,Laisamis,Ngurunit,Parkishon,Songa,Karare,Balesa,Dillo,Sololo,Walda".split(",");
+const rain=[];for(let d=0;d<N;d++)rain.push(d<55?(rnd()<.4?rnd()*14:0):(rnd()<.015?rnd()*4:0));
+const W=names.map((n,i)=>{const L0=6+rnd()*9,dr=.035+rnd()*.045,rc=.008+rnd()*.006,x=8+rnd()*84,y=8+rnd()*52;let L=L0,lv=[],ob=[],f=null;
+for(let d=0;d<N;d++){L+=rc*rain[d]-dr-.004;if(L<=0&&f===null)f=d;if(L<0)L=0;lv.push(L);ob.push(L+gs()*.08)}return{n,x,y,lv,ob,f}});
+const V=Array.from({length:12},(_,j)=>{const h=W[j*2];return{n:"Village "+(j+1),home:j*2,x:h.x+(rnd()*8-4),y:h.y+(rnd()*8-4),herd:Math.round(80+rnd()*320)}});
+let t=150,sel=3,H=35,dead=false,cloud=false,sw=false,rep={};
+const month=d=>new Date(2021,0,1+d).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+function reg(t0,i){const r=W.filter((w,k)=>k!==i&&w.lv[t0]>.3).map(w=>(w.ob[t0-14]-w.ob[t0])/14).sort((a,b)=>a-b);return r[r.length>>1]||.05}
+function pred(i,t,o={}){const w=W[i];let lvl,rate,se,ls=.1;
+if(o.dead){const t0=Math.max(15,t-21);rate=-reg(t0,i)*-1;rate=reg(t0,i);lvl=w.ob[t0]-rate*(t-t0);se=.012;ls=.3}
+else{const a=Math.max(0,t-14);let n=0,sx=0,sy=0,sxx=0,sxy=0;for(let d=a;d<=t;d++){n++;sx+=d;sy+=w.ob[d];sxx+=d*d;sxy+=d*w.ob[d]}
+const b=(n*sxy-sx*sy)/(n*sxx-sx*sx),c=(sy-b*sx)/n,xm=sx/n;let ss=0,sd=0;for(let d=a;d<=t;d++){ss+=(w.ob[d]-c-b*d)**2;sd+=(d-xm)**2}
+rate=-b;se=Math.sqrt(ss/(n-2))/Math.sqrt(sd);lvl=c+b*t}
+const k=(o.cloud?1.35:1)*(o.rf||1);se*=k;ls*=k;lvl=Math.max(lvl,0);
+if(rate<.004)return{lvl,stable:true,lo:999,mid:999,hi:999};
+return{lvl,stable:false,mid:Math.min(150,lvl/rate),lo:Math.max(0,(lvl-1.28*ls)/(rate+1.28*se)),hi:Math.min(150,(lvl+1.28*ls)/Math.max(rate-1.28*se,.004))}}
+const opt=i=>({dead:dead&&i===sel,cloud:cloud&&i===sel,rf:rep[i]==1?.8:rep[i]==2?1.25:1});
+const TN=["Healthy","Watch","Warning","Act now"],TC=["var(--ok)","var(--w1)","var(--w2)","var(--w3)"];
+function tier(i,p){return p.lo<=H*.3?3:p.lo<=H*.6?2:p.lo<=H?1:0}
+const LO=W.map((w,i)=>W[i].ob.map((_,d)=>d<T0||(w.f!==null&&d>=w.f)||d>=N-1?999:pred(i,d).lo));
+function backtest(){let fl=0,got=0,lead=[],fa=0,nf=0;W.forEach((w,i)=>{let f=null;for(let d=T0;d<N-1;d++)if(LO[i][d]<=H){f=d;break}
+if(w.f!==null&&w.f>T0+10){fl++;if(f!==null&&w.f-f>=7){got++;lead.push(w.f-f)}}else{nf++;if(f!==null&&(w.f===null||w.f-f>H+30))fa++}});
+lead.sort((a,b)=>a-b);return{fl,got,med:lead.length?lead[lead.length>>1]:0,fa,nf}}
+function firstFlag(i){for(let d=T0;d<N-1;d++)if(LO[i][d]<=H)return d;return null}
+function status(i){const w=W[i];if(w.f!==null&&t>=w.f)return{dry:true,tier:-1,p:{lvl:0,lo:0,mid:0,hi:0}};const p=pred(i,t,opt(i));return{dry:false,tier:tier(i,p),p}}
+function route(S){const bad=V.filter(v=>S[v.home].tier>=2||S[v.home].dry),good=W.map((w,i)=>i).filter(i=>!S[i].dry&&S[i].tier<2);
+const cap={},base={};good.forEach(i=>{cap[i]=Math.max(S[i].p.lvl,.1)*45;base[i]=V.filter(v=>v.home===i).reduce((s,v)=>s+v.herd,0)});
+const dist=(v,i)=>Math.hypot(v.x-W[i].x,v.y-W[i].y)*1.5,nl={...base},bl={...base},nav={},bal={};
+bad.forEach(v=>{let b=good.reduce((a,i)=>dist(v,i)<dist(v,a)?i:a,good[0]);nav[v.n]=b;nl[b]+=v.herd});
+[...bad].sort((a,b)=>b.herd-a.herd).forEach(v=>{let b=null,bc=1e9;good.forEach(i=>{const c=dist(v,i)+400*Math.max(0,(bl[i]+v.herd-cap[i])/cap[i]);if(c<bc){bc=c;b=i}});bal[v.n]=b;bl[b]+=v.herd});
+const ov=l=>good.filter(i=>l[i]>cap[i]).length;return{bad,good,cap,nl,bl,nav,bal,dist,on:ov(nl),ob:ov(bl)}}
+function draw(){const S=W.map((w,i)=>status(i)),s=S[sel],w=W[sel],R=route(S);
+$("#dl").textContent=month(t);$("#rl").textContent=H<0?"":$("#r").value;
+let m="";V.forEach(v=>m+=`<rect x="${v.x-1}" y="${v.y-1}" width="2" height="2" fill="var(--mu)"/>`);
+R.bad.forEach(v=>{const g=R.bal[v.n];if(g!==undefined&&g!==null)m+=`<line x1="${v.x}" y1="${v.y}" x2="${W[g].x}" y2="${W[g].y}" stroke="var(--ac)" stroke-width=".5" stroke-dasharray="1.5 1"/>`});
+W.forEach((x,i)=>{const d=S[i].dry,c=d?"var(--dry)":TC[S[i].tier];m+=`<g tabindex="0" style="cursor:pointer" onclick="sel=${i};draw()" onkeydown="if(event.key=='Enter'){sel=${i};draw()}"><circle cx="${x.x}" cy="${x.y}" r="${i===sel?3.6:2.6}" fill="${c}" stroke="${i===sel?"var(--tx)":"var(--cd)"}" stroke-width="${i===sel?.9:.5}"/>${d?`<text x="${x.x}" y="${x.y+1}" font-size="3" text-anchor="middle" fill="#fff">x</text>`:""}<text x="${x.x+4}" y="${x.y+1}" font-size="2.6" fill="var(--tx)">${x.n}</text></g>`});
+$("#map").innerHTML=m;$("#leg").innerHTML=["Healthy","Watch","Warning","Act now"].map((n,i)=>`<span class="pill" style="background:${TC[i]};margin:4px 4px 0 0">${n}</span>`).join("")+`<span class="pill" style="background:var(--dry)">Dry</span> Dashed lines show where each at-risk village is sent.`;
+$("#wn").textContent=w.n+" well";
+const sens=dead?"Sensor lost: using regional trend from neighbouring wells"+(cloud?" and Landsat/radar (cloudy)":""):cloud?"Sensor OK, cloudy Sentinel-2 pass: radar fallback":"Sensor OK, Sentinel-2 clear";
+const pr=s.p;let head;
+if(s.dry)head=`<span class="pill" style="background:var(--dry)">Dry since ${month(w.f)}</span>`;
+else if(pr.stable)head=`<span class="pill" style="background:var(--ok)">Healthy</span> <span class="big">Level stable</span>`;
+else head=`<span class="pill" style="background:${TC[s.tier]}">${TN[s.tier]}</span> <span class="big">${Math.round(pr.lo)}–${Math.round(pr.hi)} days left</span>`;
+$("#det").innerHTML=`<div>${head}</div><div class="mu">Best guess ${s.dry||pr.stable?"–":Math.round(pr.mid)+" days"} · 80% range · level ${pr.lvl.toFixed(1)} m${rep[sel]?` · herder report: ${["","confirms dry","says OK (range widened)","reports salty"][rep[sel]]}`:""}</div><div class="mu">Data health: ${sens}</div>`;
+// chart
+const X=d=>8+d/(N+90)*384,mx=Math.max(...w.lv)+1,Y=v=>140-v/mx*125;let c=`<line x1="8" y1="140" x2="392" y2="140" stroke="var(--bd)"/>`;
+c+=`<polyline fill="none" stroke="var(--ac)" stroke-width="1.6" points="${w.lv.slice(0,t+1).map((v,d)=>X(d)+","+Y(v)).join(" ")}"/>`;
+if(!s.dry&&!pr.stable)c+=`<polygon fill="var(--w2)" opacity=".28" points="${X(t)},${Y(pr.lvl)} ${X(t+pr.lo)},${Y(0)} ${X(t+pr.hi)},${Y(0)}"/><line x1="${X(t)}" y1="${Y(pr.lvl)}" x2="${X(t+pr.mid)}" y2="${Y(0)}" stroke="var(--w2)" stroke-dasharray="3 2"/>`;
+const ff=firstFlag(sel);if(w.f!==null){c+=`<line x1="${X(w.f)}" y1="10" x2="${X(w.f)}" y2="140" stroke="var(--w3)" stroke-width="1.5"/><text x="${X(w.f)+3}" y="20" font-size="9" fill="var(--w3)">dry</text>`}
+if(ff!==null)c+=`<line x1="${X(ff)}" y1="30" x2="${X(ff)}" y2="140" stroke="var(--ok)" stroke-dasharray="2 2"/><text x="${X(ff)-3}" y="28" font-size="9" fill="var(--ok)" text-anchor="end">first alert${w.f!==null?" · "+Math.round((w.f-ff)/7)+" wk early":""}</text>`;
+c+=`<line x1="${X(t)}" y1="10" x2="${X(t)}" y2="140" stroke="var(--tx)" stroke-width=".8"/>`;$("#ch").innerHTML=c;
+// backtest
+const B=backtest();$("#bt").innerHTML=`<div><div class="big">${B.fl?Math.round(100*B.got/B.fl):0}%</div><div class="mu">failures caught ≥1 week early (${B.got} of ${B.fl})</div></div><div><div class="big">${(B.med/7).toFixed(1)} wk</div><div class="mu">median warning lead time</div></div><div><div class="big">${B.fa}/${B.nf}</div><div class="mu">false-alarm wells among those that never failed</div></div>`;
+$("#btn").textContent="Slide the cost control: a higher miss cost catches more failures earlier, at the price of more false alarms.";
+// routing
+const nm=i=>W[i].n;let h=`<div class="rt"><b>Without load balancing:</b> ${R.on} backup well(s) overloaded. <b>With Bir Alert:</b> ${R.ob} overloaded.</div>`;
+if(!R.bad.length)h+=`<div class="mu">No village needs rerouting on this date. Move the date forward.</div>`;
+R.bad.slice(0,6).forEach(v=>{const g=R.bal[v.n],a=R.nav[v.n];h+=`<div class="rt">${v.n} (${v.herd} animals) → <b>${nm(g)}</b>, ${R.dist(v,g).toFixed(0)} km${a!==g?` <span class="mu">(nearest was ${nm(a)})</span>`:""}</div>`});
+$("#rt").innerHTML=h;
+// sms
+let v=V.find(v=>v.home===sel)||V.reduce((a,b)=>Math.hypot(a.x-w.x,a.y-w.y)<Math.hypot(b.x-w.x,b.y-w.y)?a:b);const g=R.bal[v.n],lo=Math.round(pr.lo),hi=Math.round(pr.hi),conf=dead||cloud?(sw?"Uhakika mdogo":"lower confidence"):"";
+let msg;if(s.dry)msg=sw?`Kisima ${w.n} kimekauka. Nenda ${g!=null?nm(g):"kisima jirani"}.`:`${w.n} well is dry. Go to ${g!=null?nm(g):"the nearest open well"}.`;
+else if(s.tier<1||pr.stable)msg=sw?`Kisima ${w.n} kiko salama.`:`${w.n} well is fine. No action needed.`;
+else msg=sw?`ONYO ${TN[s.tier]}: Kisima ${w.n} kinaweza kukauka ndani ya siku ${lo}-${hi}. ${g!=null?"Nenda "+nm(g)+" (km "+R.dist(v,g).toFixed(0)+").":""} ${conf} Jibu 1=kavu 2=sawa 3=chumvi`:`BIR ALERT ${TN[s.tier]}: ${w.n} well may run dry in ${lo}-${hi} days (80% sure). ${g!=null?"Move herds to "+nm(g)+" ("+R.dist(v,g).toFixed(0)+" km).":""} ${conf?"("+conf+") ":""}Reply 1=dry 2=ok 3=salty`;
+let ph=`<div class="mu">To: ${v.n} elder · basic phone, no data</div><div class="b in">${msg}</div>`;
+if(rep[sel])ph+=`<div class="b out">${rep[sel]}</div><div class="b in">${sw?"Asante. Ripoti imeongezwa.":"Thanks. Report logged and forecast updated."}</div>`;
+ph+=`<div class="row"><button onclick="rep[sel]=1;draw()">Reply 1</button><button onclick="rep[sel]=2;draw()">Reply 2</button><button onclick="rep[sel]=3;draw()">Reply 3</button></div><div class="mu" style="margin-top:8px">Every reply is crowdsourced ground truth that tightens or widens the forecast.</div>`;
+$("#ph").innerHTML=ph}
+$("#t").oninput=e=>{t=+e.target.value;draw()};$("#r").oninput=e=>{H=Math.round(14+9*Math.log(+e.target.value));draw()};
+$("#dead").onchange=e=>{dead=e.target.checked;draw()};$("#cl").onchange=e=>{cloud=e.target.checked;draw()};$("#sw").onchange=e=>{sw=e.target.checked;draw()};
+H=Math.round(14+9*Math.log(10));draw();
+</script></body></html>
